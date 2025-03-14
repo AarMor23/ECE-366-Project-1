@@ -1,0 +1,53 @@
+`timescale 1ns/1ps
+
+
+module tb_CLA_32;
+
+    reg  [31:0] A, B;
+    reg         Cin;
+    wire [31:0] S;
+    wire        Cout;
+
+    CLA_32 dut (
+        .A(A),
+        .B(B),
+        .Cin(Cin),
+        .S(S),
+        .Cout(Cout)
+    );
+
+    initial begin
+        $dumpfile("cla_32.vcd");
+        $dumpvars(0, tb_CLA_32);
+
+        $monitor($time, " A=%h B=%h Cin=%b => S=%h Cout=%b", A, B, Cin, S, Cout);
+
+        A = 32'h00000000; 
+        B = 32'h00000000; 
+        Cin = 1'b0;
+        #10;
+        
+        A = 32'h0000FFFF; 
+        B = 32'h0000FFFF; 
+        Cin = 1'b0;
+        #10;
+
+        A = 32'hFFFFFFFF; 
+        B = 32'h00000001; 
+        Cin = 1'b1;
+        #10;
+
+        A = 32'hB2C36145; 
+        B = 32'hC15E4EE5; 
+        Cin = 1'b0;
+        #10;
+
+        A = $random;
+        B = $random;
+        Cin = $random % 2;
+        #10;
+
+        $finish;
+    end
+
+endmodule
