@@ -1,0 +1,137 @@
+`timescale 1ns/1ps
+
+
+module \1_bit_adder (S, Cout, A, B, Cin);
+    output S, Cout;
+    input A, B, Cin;
+
+    wire and_1_out, or_0_out, xor_1_out, and_0_out, xor_0_out;
+
+    
+    assign and_1_out = xor_0_out & Cin;
+    assign or_0_out  = and_0_out | and_1_out;
+    assign Cout      = or_0_out;
+    assign xor_1_out = xor_0_out ^ Cin;
+    assign S         = xor_1_out;
+    assign and_0_out = A & B;
+    assign xor_0_out = A ^ B;
+endmodule
+
+
+module RCA (
+    output C4, S0, S1, S2, S3,
+    input A0, B0, C1, A1, B1, A2, B2, A3, B3
+);
+    
+    wire c1_out, c2_out, c3_out; 
+
+    
+    \1_bit_adder u0 (
+        .S(S0),
+        .Cout(c1_out),
+        .A(A0),
+        .B(B0),
+        .Cin(C1)
+    );
+
+    
+    \1_bit_adder u1 (
+        .S(S1),
+        .Cout(c2_out),
+        .A(A1),
+        .B(B1),
+        .Cin(c1_out)
+    );
+
+  
+    \1_bit_adder u2 (
+        .S(S2),
+        .Cout(c3_out),
+        .A(A2),
+        .B(B2),
+        .Cin(c2_out)
+    );
+
+    
+    \1_bit_adder u3 (
+        .S(S3),
+        .Cout(C4),
+        .A(A3),
+        .B(B3),
+        .Cin(c3_out)
+    );
+endmodule
+
+
+module CLA_32 (
+    input  [31:0] A, 
+    input  [31:0] B,
+    input         Cin,
+    output [31:0] S,
+    output        Cout
+);
+    wire [8:0] C;
+    assign C[0] = Cin; 
+
+    wire [7:0] G;  
+    wire [7:0] P;  
+
+    genvar i;
+    generate 
+      for (i = 0; i < 8; i = i + 1) begin : gp_logic
+         wire [3:0] A_blk = A[4*i+3 : 4*i];
+         wire [3:0] B_blk = B[4*i+3 : 4*i];
+
+         wire g0 = A_blk[0] & B_blk[0];
+         wire g1 = A_blk[1] & B_blk[1];
+         wire g2 = A_blk[2] & B_blk[2];
+         wire g3 = A_blk[3] & B_blk[3];
+
+         wire p0 = A_blk[0] ^ B_blk[0];
+         wire p1 = A_blk[1] ^ B_blk[1];
+         wire p2 = A_blk[2] ^ B_blk[2];
+         wire p3 = A_blk[3] ^ B_blk[3];
+
+         wire p3g2, p3p2g1, p3p2p1g0, tmp1, tmp2;
+         assign p3g2       = p3 & g2;
+         assign tmp1       = p3 & p2;
+         assign p3p2g1     = tmp1 & g1;
+         assign tmp2       = tmp1 & p1;
+         assign p3p2p1g0   = tmp2 & g0;
+         assign G[i]       = g3 | p3g2 | p3p2g1 | p3p2p1g0;
+
+         wire tmp3 = p3 & p2;
+         wire tmp4 = tmp3 & p1;
+         assign P[i] = tmp4 & p0;
+      end
+    endgenerate
+
+    generate
+      for (i = 0; i < 8; i = i + 1) begin : block_carry
+        assign C[i+1] = G[i] | (P[i] & C[i]);
+      end
+    endgenerate
+
+    assign Cout = C[8];
+
+    generate
+      for (i = 0; i < 8; i = i + 1) begin : cla_blocks
+         RCA rca_4bit (
+            .C4(), 
+            .S0(S[4*i+0]),
+            .S1(S[4*i+1]),
+            .S2(S[4*i+2]),
+            .S3(S[4*i+3]),
+            .A0(A[4*i+0]),
+            .B0(B[4*i+0]),
+            .C1(C[i]),    
+            .A1(A[4*i+1]),
+            .B1(B[4*i+1]),
+            .A2(A[4*i+2]),
+            .B2(B[4*i+2]),
+            .A3(A[4*i+3]),
+            .B3(B[4*i+3])
+         );
+      end
+    endgenerate
+endmodule
